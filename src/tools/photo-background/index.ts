@@ -2,38 +2,21 @@ import { removeBackground, preload, type Config } from "@imgly/background-remova
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import type { ToolModule } from "../index";
+import { SlotUrlManager } from "./urls";
+import { progressInfo } from "./progress";
+import { dirnameFromPath } from "./paths";
 
-const config: Config = {
-  publicPath: "/imgly/",
-  model: "isnet_quint8",
-  device: "cpu",
-  progress: (key: string, current: number, total: number) => {
-    console.debug(`imgly ${key}: ${current}/${total}`);
-  },
-};
-
-interface PhotoState {
-  inputFile: File | null;
-  resultBlob: Blob | null;
-  objectUrls: string[];
-}
-
-const state: PhotoState = {
-  inputFile: null,
-  resultBlob: null,
-  objectUrls: [],
-};
-
-function createUrl(blob: Blob): string {
-  const url = URL.createObjectURL(blob);
-  state.objectUrls.push(url);
-  return url;
-}
+let dispose: (() => void) | undefined;
 
 export const photoBackground: ToolModule = {
   mount(container) {
-    state.inputFile = null;
-    state.resultBlob = null;
+    const urls = new SlotUrlManager();
+    let mounted = true;
+    let inputFile: File | null = null;
+    let resultBlob: Blob | null = null;
+    let processing = false;
+    let lastSaveDir = "";
+
     container.innerHTML = `
       <div class="dropzone" id="pz-dropzone">
         <p>Arrastra una imagen aquí</p>
@@ -87,18 +70,31 @@ export const photoBackground: ToolModule = {
       progressFill.style.width = `${percent}%`;
     };
 
+    const config: Config = {
+      publicPath: "/imgly/",
+      model: "isnet_quint8",
+      device: "cpu",
+      progress: (key, current, total) => {
+        if (!mounted) return;
+        const info = progressInfo(key, current, total);
+        setProgress(true, info.text, info.percent);
+      },
+    };
+
     const loadFile = (file: File | undefined | null): void => {
       if (!file) return;
       if (!file.type.startsWith("image/")) {
+        processBtn.disabled = true;
+        saveBtn.disabled = true;
         setStatus("El archivo seleccionado no es una imagen.", true);
         return;
       }
-      state.inputFile = file;
-      state.resultBlob = null;
+      inputFile = file;
+      resultBlob = null;
       result.src = "";
       saveBtn.disabled = true;
       processBtn.disabled = false;
-      original.src = createUrl(file);
+      original.src = urls.set("original", file);
       setStatus("Imagen cargada. Pulsa «Quitar fondo» para procesarla.");
     };
 
@@ -115,53 +111,77 @@ export const photoBackground: ToolModule = {
     });
     input.addEventListener("change", () => loadFile(input.files?.item(0)));
 
+    const preventNavigation = (e: DragEvent): void => e.preventDefault();
+    window.addEventListener("dragover", preventNavigation);
+    window.addEventListener("drop", preventNavigation);
+
+    const loadPromise = preload(config).catch((err) => {
+      console.debug("Precarga del modelo omitida:", err);
+    });
+
     processBtn.addEventListener("click", async () => {
-      if (!state.inputFile) return;
+      if (!inputFile || processing) return;
+      processing = true;
       processBtn.disabled = true;
       saveBtn.disabled = true;
       setProgress(true, "Preparando modelo e IA...", 5);
       setStatus("Procesando imagen, esto puede tomar unos segundos...");
       try {
-        const blob = await removeBackground(state.inputFile, config);
-        state.resultBlob = blob;
-        result.src = createUrl(blob);
+        await loadPromise;
+        if (!mounted) return;
+        const blob = await removeBackground(inputFile, config);
+        if (!mounted) return;
+        resultBlob = blob;
+        result.src = urls.set("result", blob);
         saveBtn.disabled = false;
         setStatus("¡Listo! El fondo se eliminó correctamente.");
       } catch (err) {
+        if (!mounted) return;
         console.error(err);
         setStatus(`Error al procesar la imagen: ${(err as Error).message}`, true);
       } finally {
-        setProgress(false);
+        if (mounted) setProgress(false);
         processBtn.disabled = false;
+        processing = false;
       }
     });
 
     saveBtn.addEventListener("click", async () => {
-      if (!state.resultBlob) return;
-      const base = state.inputFile?.name.replace(/\.[^.]+$/, "") ?? "imagen";
+      if (!resultBlob) return;
+      const base = inputFile?.name.replace(/\.[^.]+$/, "") ?? "imagen";
       try {
         const path = await save({
           title: "Guardar imagen sin fondo",
-          defaultPath: `${base}-sin-fondo.png`,
+          defaultPath: lastSaveDir || `${base}-sin-fondo.png`,
           filters: [{ name: "PNG", extensions: ["png"] }],
         });
         if (!path) return;
-        await writeFile(path, new Uint8Array(await state.resultBlob.arrayBuffer()));
+        await writeFile(path, new Uint8Array(await resultBlob.arrayBuffer()));
+        lastSaveDir = dirnameFromPath(path);
         setStatus(`Guardada en: ${path}`);
       } catch (err) {
-        setStatus(`Error al guardar: ${(err as Error).message}`, true);
+        const message = (err as Error).message ?? String(err);
+        if (/not allowed|scope/i.test(message)) {
+          setStatus(
+            "No se pudo guardar en esa ubicación. Prueba en Documentos, Imágenes, Descargas o el Escritorio.",
+            true,
+          );
+        } else {
+          setStatus(`Error al guardar: ${message}`, true);
+        }
       }
     });
 
-    void preload(config).catch((err) => {
-      console.debug("Precarga del modelo omitida:", err);
-    });
+    dispose = () => {
+      mounted = false;
+      window.removeEventListener("dragover", preventNavigation);
+      window.removeEventListener("drop", preventNavigation);
+      urls.close();
+    };
   },
 
   unmount() {
-    for (const url of state.objectUrls) {
-      URL.revokeObjectURL(url);
-    }
-    state.objectUrls.length = 0;
+    dispose?.();
+    dispose = undefined;
   },
 };
