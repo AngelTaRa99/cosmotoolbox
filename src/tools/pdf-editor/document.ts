@@ -12,6 +12,9 @@ import { classifyFont, mostCommon, type FontClass } from "./fonts";
 let workerPortSet = false;
 function ensureWorker(): void {
   if (workerPortSet) return;
+  // En node/vitest no existe Worker: pdf.js cae a su fake worker, que
+  // sirve para getTextContent — permite testear loadPdf en el suite.
+  if (typeof Worker === "undefined") return;
   pdfjs.GlobalWorkerOptions.workerPort = new PdfWorker();
   workerPortSet = true;
 }
@@ -53,8 +56,11 @@ function collectBaseFontNames(pdfLibDoc: PDFDocument): string[] {
     const fontDict = page.node.normalizedEntries()?.Font;
     if (!fontDict) continue;
     for (const value of fontDict.values()) {
-      if (!(value instanceof PDFDict)) continue;
-      const base = value.get(PDFName.of("BaseFont"));
+      // En PDFs reales el valor es un PDFRef (5 0 R), no un dict inline:
+      // sin lookup, instanceof PDFDict falla siempre y baseNames queda [].
+      const resolved = pdfLibDoc.context.lookup(value);
+      if (!(resolved instanceof PDFDict)) continue;
+      const base = resolved.get(PDFName.of("BaseFont"));
       if (base instanceof PDFName) {
         names.push(base.asString().replace(/^\//, ""));
       }
