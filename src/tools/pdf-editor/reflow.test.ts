@@ -77,9 +77,30 @@ describe("reflowBlock", () => {
   it("las líneas se apilan hacia abajo con el interlineado del bloque", () => {
     const b = block([line("a", 700), line("b", 685)]);
     const r = reflowBlock(b, "uno dos tres cuatro cinco seis siete ocho", measure);
-    if (r.lines.length >= 2) {
-      const dy = r.lines[0].y - r.lines[1].y;
-      expect(dy).toBeCloseTo(b.lineHeight, 5);
-    }
+    // El fixture garantiza ≥2 líneas (38 chars × 6pt = 228 > 200pt):
+    // sin guardas, si el wrap cambiara el test falla ruidosamente.
+    expect(r.lines.length).toBeGreaterThanOrEqual(2);
+    const dy = r.lines[0].y - r.lines[1].y;
+    expect(dy).toBeCloseTo(b.lineHeight, 5);
+  });
+
+  it("shiftDelta cero cuando el contenido no cambia (sin deriva)", () => {
+    const b = block([line("hola mundo", 700)]);
+    const r = reflowBlock(b, "hola mundo", measure);
+    expect(r.lines).toHaveLength(1);
+    expect(r.shiftDelta).toBeCloseTo(0, 5);
+  });
+
+  it("conserva la primera línea base en el borde superior del bloque", () => {
+    const b = block([line("corto", 700)]);
+    const r = reflowBlock(b, "uno dos tres cuatro cinco seis siete ocho", measure);
+    expect(r.lines[0].y).toBeCloseTo(b.top, 5);
+  });
+
+  it("shiftDelta equivale al cambio de líneas por el interlineado", () => {
+    const b = block([line("corto", 700)]); // 1 línea → 2 líneas (216pt > 200pt)
+    const r = reflowBlock(b, "uno dos tres cuatro cinco seis siete", measure);
+    expect(r.lines).toHaveLength(2);
+    expect(r.shiftDelta).toBeCloseTo((2 - 1) * b.lineHeight, 5);
   });
 });

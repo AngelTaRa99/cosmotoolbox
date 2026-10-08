@@ -60,10 +60,9 @@ export function reflowBlock(
   }
 
   const wrapped = wrap(words, firstMax, otherMax, fontSize, measure);
-  const ascent = fontSize * 0.8;
 
   const lines: ReflowLine[] = wrapped.map((text, i) => {
-    const y = block.top - i * lineHeight - ascent;
+    const y = block.top - i * lineHeight;
     const w = measure(text, fontSize);
     let x = block.left + (i === 0 ? block.indent : 0);
     if (block.align === "center") x = block.left + (block.width - w) / 2;
@@ -71,7 +70,7 @@ export function reflowBlock(
     return { text, x, y, fontSize };
   });
 
-  const newHeight = wrapped.length * lineHeight;
+  const newHeight = (wrapped.length - 1) * lineHeight + fontSize * 0.25;
   const shiftDelta = newHeight - oldHeight;
   return { canReflow: true, lines, shiftDelta };
 }
