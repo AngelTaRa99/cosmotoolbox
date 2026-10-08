@@ -17,6 +17,7 @@ export const pdfEditor: ToolModule = {
   mount(container) {
     let mounted = true;
     let pdf: LoadedPdf | null = null;
+    let source: Uint8Array | null = null;
     let blocks: TextBlock[] = [];
     let currentPage = 0;
     let scale = 1.2;
@@ -87,8 +88,8 @@ export const pdfEditor: ToolModule = {
     };
 
     const rebuild = async (): Promise<void> => {
-      if (!pdf) return;
-      const finalBytes = await applyEdits(pdf.bytes, history.current(), pdf.fontClass);
+      if (!pdf || !source) return;
+      const finalBytes = await applyEdits(source, history.current(), pdf.fontClass);
       pdf = await loadPdf(finalBytes);
       await renderCurrent();
     };
@@ -102,7 +103,8 @@ export const pdfEditor: ToolModule = {
       try {
         const bytes = new Uint8Array(await file.arrayBuffer());
         pdf = await loadPdf(bytes);
-        history.set([]);
+        source = bytes;
+        history.reset([]);
         dropzone.classList.add("hidden");
         toolbar.classList.remove("hidden");
         wrap.classList.remove("hidden");
@@ -131,11 +133,12 @@ export const pdfEditor: ToolModule = {
     const openInlineEditor = (block: TextBlock): void => {
       const rectX = block.left * scale;
       const rectW = block.width * scale;
-      const canvasTop = canvas.getBoundingClientRect().top;
-      const wrapTop = wrap.getBoundingClientRect().top;
-      const screenY = canvasTop - wrapTop + (canvas.height - block.top * scale);
+      const canvasRect = canvas.getBoundingClientRect();
+      const wrapRect = wrap.getBoundingClientRect();
+      const screenX = canvasRect.left - wrapRect.left + rectX;
+      const screenY = canvasRect.top - wrapRect.top + (canvas.height - block.top * scale);
       const screenH = (block.top - block.bottom) * scale;
-      textarea.style.left = `${rectX}px`;
+      textarea.style.left = `${screenX}px`;
       textarea.style.top = `${screenY}px`;
       textarea.style.width = `${Math.max(rectW, 80)}px`;
       textarea.style.height = `${Math.max(screenH, 20)}px`;
@@ -221,8 +224,8 @@ export const pdfEditor: ToolModule = {
       void rebuild();
     });
     $("pe-save").addEventListener("click", () => {
-      if (!pdf) return;
-      void applyEdits(pdf.bytes, history.current(), pdf.fontClass).then((out) =>
+      if (!pdf || !source) return;
+      void applyEdits(source, history.current(), pdf.fontClass).then((out) =>
         savePdf(out, PAD_NAME).then((path) => {
           if (path) setStatus(`Guardada en: ${path}`);
         }),

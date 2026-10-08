@@ -18,6 +18,12 @@ export class History<T> {
     this.future = [];
   }
 
+  reset(state: T): void {
+    this.past = [];
+    this.present = state;
+    this.future = [];
+  }
+
   canUndo(): boolean {
     return this.past.length > 0;
   }
