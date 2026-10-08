@@ -298,3 +298,52 @@ main {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ---- PDF editor ---- */
+.pe-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--tile);
+  border: 1px solid var(--tile-border);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.pe-btn {
+  padding: 6px 12px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--tile-border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pe-btn:hover:not(:disabled) { border-color: var(--accent); }
+.pe-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pe-sep { width: 1px; height: 20px; background: var(--tile-border); }
+.pe-grow { flex: 1; }
+.pe-canvas-wrap {
+  position: relative;
+  overflow: auto;
+  background: #1e1e1e;
+  border: 1px solid var(--tile-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.pe-canvas-wrap canvas { display: block; margin: 0 auto; background: #fff; }
+.pe-inline-editor {
+  position: absolute;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.96);
+  color: #101010;
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  padding: 0 2px;
+  margin: 0;
+  resize: none;
+  overflow: hidden;
+  font-family: sans-serif;
+  line-height: 1.2;
+}
