@@ -14,7 +14,7 @@ interface PdfjsProxy {
 }
 
 export class PdfViewer {
-  private page = 1;
+  private page = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {}
 
@@ -23,7 +23,6 @@ export class PdfViewer {
   }
 
   async render(pdf: LoadedPdf, pageNumber: number, scale: number): Promise<void> {
-    this.page = pageNumber;
     const doc = pdf.pdfjsProxy as PdfjsProxy;
     const page = await doc.getPage(pageNumber + 1);
     const viewport = page.getViewport({ scale });
@@ -32,5 +31,6 @@ export class PdfViewer {
     this.canvas.width = Math.floor(viewport.width);
     this.canvas.height = Math.floor(viewport.height);
     await page.render({ canvasContext: ctx, viewport }).promise;
+    this.page = pageNumber;
   }
 }
