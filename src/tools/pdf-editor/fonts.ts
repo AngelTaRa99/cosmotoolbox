@@ -3,7 +3,7 @@ export type FontClass = "serif" | "sans" | "mono";
 
 export const DEFAULT_FONT_CLASS: FontClass = "sans";
 
-const MONO = ["courier", "consol", "menlo", "monaco", "lucidaconsole", "liberationmono", "dejavusansmono", "sourcecode", "fira", "inconsolata"];
+const MONO = ["courier", "consol", "menlo", "monaco", "lucidaconsole", "liberationmono", "dejavusansmono", "sourcecode", "firacode", "inconsolata"];
 const SERIF = ["times", "georgia", "garamond", "serif", "liberationserif", "timesnewroman", "cambria", "constantia", "bookantiqua", "palatino"];
 const SANS = ["helvetica", "arial", "calibri", "verdana", "tahoma", "segoe", "roboto", "opensans", "lato", "montserrat", "liberationsans", "nunito", "sans"];
 

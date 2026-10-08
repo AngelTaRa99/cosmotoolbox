@@ -28,6 +28,11 @@ describe("classifyFont", () => {
   it("desconocido cae a la clase por defecto", () => {
     expect(classifyFont("WeirdFont123")).toBe(DEFAULT_FONT_CLASS);
   });
+
+  it("FiraSans es sans, no mono (keyword 'firacode' no 'fira')", () => {
+    expect(classifyFont("FiraSans")).toBe("sans");
+    expect(classifyFont("FiraCode")).toBe("mono");
+  });
 });
 
 describe("mostCommon", () => {
