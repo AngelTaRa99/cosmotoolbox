@@ -107,7 +107,7 @@ function groupLinesToBlocks(
   page: number,
 ): TextBlock[] {
   if (lines.length === 0) return [];
-  const blocks: TextBlock[][] = [];
+  const blocks: TextLine[][] = [];
   let current: TextLine[] = [lines[0]];
   for (let i = 1; i < lines.length; i++) {
     const prev = current[current.length - 1];
